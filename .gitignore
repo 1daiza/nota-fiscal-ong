@@ -1,0 +1,31 @@
+# dependencias
+/node_modules
+/.pnp
+.pnp.js
+
+# testes
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# producao
+/build
+
+# ambiente (NUNCA commitar credenciais)
+.env
+.env.local
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# sistema
+.DS_Store
+Thumbs.db
+*.log
