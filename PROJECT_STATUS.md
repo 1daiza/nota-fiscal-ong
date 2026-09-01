@@ -16,7 +16,7 @@
 - [x] Filtros por situação + busca por texto
 - [x] Formulário de cadastro com validação de valor e de chave de 44 dígitos
 - [x] Ação "Marcar cadastrada" direto na tabela
-- [x] Página de scanner com câmera, mira e leitura de QR Code
+- [x] Página de scanner com câmera, mira e leitura de QR Code em qualquer navegador (BarcodeDetector nativo + jsQR como alternativa)
 - [x] Entrada manual da chave como alternativa ao scanner
 - [x] Tela de confirmação dos dados antes de salvar
 - [x] Aviso claro quando a nota lida já existe (duplicidade)
@@ -58,7 +58,7 @@ Passo a passo em [INSTRUCTIONS.md](INSTRUCTIONS.md).
 | **Sem login** | Qualquer pessoa com o link acessa e edita | Ativar Supabase Auth e trocar as políticas de RLS por `auth.uid()` |
 | **RLS aberto para `anon`** | Não use com dados reais de doadores ainda | Mesma solução acima — é o item nº 1 da lista |
 | **Tabela `usuarios` sem uso no app** | Ela existe no banco, mas nada grava nela | Preenchida junto com o login |
-| **Scanner só no Chrome** | `BarcodeDetector` não existe no Safari | Entrada manual já cobre; ou adicionar uma biblioteca de leitura |
+| **Leitura na mão-grande** | QR muito danificado ou amassado pode não ler | Entrada manual da chave já cobre |
 | **Sem OCR** | Nota sem QR Code precisa ser digitada | Integrar OCR de foto ou PDF |
 | **Sem integração com o portal NFP** | O lançamento no portal continua manual | Avaliar automação depois — o portal não tem API pública |
 | **Limite de 500 notas na tela** | Suficiente por bastante tempo | Adicionar paginação quando o volume crescer |

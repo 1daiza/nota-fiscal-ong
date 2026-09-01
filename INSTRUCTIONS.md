@@ -96,10 +96,21 @@ A câmera do navegador só funciona em `https` ou em `localhost`. Para testar no
 celular, o caminho mais fácil é publicar na Vercel (passo 6) e abrir o link
 pelo telefone.
 
-A leitura automática de QR Code usa a API `BarcodeDetector`, que hoje funciona
-no **Chrome (Android e desktop)**. No Safari/iPhone o botão de câmera abre, mas
-a leitura automática não roda — nesse caso use o campo **"Digitar a chave
-manualmente"**, que faz a mesma checagem de duplicidade.
+A leitura automática funciona em **qualquer celular** — iPhone incluído. Onde o
+navegador tem a API nativa `BarcodeDetector` (Chrome no Android) ela é usada por
+ser mais rápida; nos demais o sistema cai para o **jsQR**, que é JavaScript puro.
+
+Se mesmo assim não ler, quase sempre é uma destas três coisas:
+
+- **A página não está em `https`.** Abrindo pelo IP da máquina (`192.168.x.x`) o
+  navegador bloqueia a câmera. Use o link da Vercel.
+- **Pouca luz ou distância errada.** O QR Code da NFC-e é denso. Encaixe na
+  moldura, a uns 15 cm, com boa iluminação e sem reflexo do papel.
+- **Permissão negada.** Se você recusou o acesso à câmera uma vez, o navegador
+  não pergunta de novo — libere no cadeado da barra de endereço.
+
+Em último caso o campo **"Digitar a chave manualmente"** faz exatamente a mesma
+checagem de duplicidade.
 
 ---
 

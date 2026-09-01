@@ -32,8 +32,10 @@ seguinte**, e é fácil perder o prazo ou cadastrar a mesma nota duas vezes.
 - **CSS puro** — sem framework de estilo, para o projeto ficar leve e fácil de mexer
 - **Vercel** para publicar (deploy automático a cada `git push`)
 
-Sem dependências pesadas: o scanner usa a API `BarcodeDetector` do próprio
-navegador, então não há biblioteca de leitura de QR Code no `package.json`.
+O scanner tem dois motores de leitura: usa o `BarcodeDetector` nativo quando o
+navegador tem (Chrome no Android, mais rápido) e cai para o **jsQR** quando não
+tem. É o jsQR que faz a leitura funcionar no **iPhone**, no Firefox e no Chrome
+do Windows — nenhum deles tem a API nativa.
 
 ---
 

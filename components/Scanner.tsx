@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import jsQR from 'jsqr'
 import FormularioNota from './FormularioNota'
 import {
   detectarDuplicidade,
@@ -72,8 +73,11 @@ interface Props {
 
 export default function Scanner({ onSalvo }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  /** Trava para não disparar duas leituras do mesmo QR Code. */
+  const lendoRef = useRef(false)
 
   const [etapa, setEtapa] = useState<Etapa>('ocioso')
   const [leitura, setLeitura] = useState<LeituraQr | null>(null)
@@ -81,7 +85,6 @@ export default function Scanner({ onSalvo }: Props) {
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
   const [manual, setManual] = useState('')
-  const [temDetector, setTemDetector] = useState(true)
 
   const pararCamera = useCallback(() => {
     if (timerRef.current) {
@@ -91,15 +94,10 @@ export default function Scanner({ onSalvo }: Props) {
     streamRef.current?.getTracks().forEach((faixa) => faixa.stop())
     streamRef.current = null
     if (videoRef.current) videoRef.current.srcObject = null
+    lendoRef.current = false
   }, [])
 
   useEffect(() => pararCamera, [pararCamera])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !('BarcodeDetector' in window)) {
-      setTemDetector(false)
-    }
-  }, [])
 
   /** Confere duplicidade e leva para a confirmação dos dados. */
   const processarChave = useCallback(
@@ -147,8 +145,14 @@ export default function Scanner({ onSalvo }: Props) {
     setLeitura(null)
 
     try {
+      // O QR Code da NFC-e é denso (guarda uma URL longa), então pedimos a
+      // maior resolução razoável — em 640x480 muitos celulares não resolvem.
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
         audio: false,
       })
       streamRef.current = stream
@@ -158,23 +162,53 @@ export default function Scanner({ onSalvo }: Props) {
       }
       setEtapa('lendo')
 
+      // Dois motores de leitura:
+      //
+      // 1. BarcodeDetector — nativo do navegador, mais rápido, mas só existe
+      //    no Chrome do Android e do ChromeOS.
+      // 2. jsQR — JavaScript puro, roda em qualquer lugar. É o que faz o
+      //    scanner funcionar no iPhone (Safari e Chrome do iOS), no Firefox
+      //    e no Chrome do Windows, onde o item 1 não existe.
       const Detector = (window as any).BarcodeDetector
-      if (!Detector) {
-        setTemDetector(false)
-        return
-      }
+      const detectorNativo = Detector
+        ? new Detector({ formats: ['qr_code'] })
+        : null
 
-      const detector = new Detector({ formats: ['qr_code'] })
       timerRef.current = setInterval(async () => {
-        if (!videoRef.current) return
+        const video = videoRef.current
+        if (!video || lendoRef.current) return
+        // HAVE_CURRENT_DATA: sem isso o frame ainda está em branco.
+        if (video.readyState < 2 || !video.videoWidth) return
+
+        let bruto: string | null = null
+
         try {
-          const codigos = await detector.detect(videoRef.current)
-          const bruto = codigos?.[0]?.rawValue
-          if (bruto) await processarChave(String(bruto))
+          if (detectorNativo) {
+            const codigos = await detectorNativo.detect(video)
+            bruto = codigos?.[0]?.rawValue ?? null
+          } else {
+            const canvas = canvasRef.current
+            const ctx = canvas?.getContext('2d', { willReadFrequently: true })
+            if (canvas && ctx) {
+              canvas.width = video.videoWidth
+              canvas.height = video.videoHeight
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+              const imagem = ctx.getImageData(0, 0, canvas.width, canvas.height)
+              const achado = jsQR(imagem.data, imagem.width, imagem.height, {
+                inversionAttempts: 'attemptBoth',
+              })
+              bruto = achado?.data ?? null
+            }
+          }
         } catch {
           // frame ruim: a próxima tentativa resolve
         }
-      }, 500)
+
+        if (bruto) {
+          lendoRef.current = true
+          await processarChave(String(bruto))
+        }
+      }, 350)
     } catch {
       setEtapa('ocioso')
       setErro(
@@ -193,7 +227,15 @@ export default function Scanner({ onSalvo }: Props) {
 
   const camadaCamera = (
     <div className="camera-caixa">
-      <video ref={videoRef} playsInline muted hidden={etapa !== 'lendo'} />
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        autoPlay
+        hidden={etapa !== 'lendo'}
+      />
+      {/* Usado só pelo jsQR para capturar o frame; nunca aparece na tela. */}
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
       {etapa === 'lendo' ? (
         <div className="mira" />
       ) : (
@@ -227,10 +269,10 @@ export default function Scanner({ onSalvo }: Props) {
           )}
         </div>
 
-        {!temDetector && (
+        {etapa === 'lendo' && (
           <div className="aviso aviso-info" style={{ marginTop: 12 }}>
-            Este navegador não faz a leitura automática de QR Code. Use o Chrome
-            no Android, ou digite a chave de 44 dígitos no campo ao lado.
+            Encaixe o QR Code dentro da moldura, a uns 15 cm de distância, com
+            boa luz. A leitura é automática.
           </div>
         )}
       </div>
