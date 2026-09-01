@@ -19,6 +19,8 @@ seguinte**, e é fácil perder o prazo ou cadastrar a mesma nota duas vezes.
 | **Filtros e busca** | Por situação (a cadastrar, cadastradas, vencendo, em revisão, duplicadas) e por texto |
 | **Cadastro manual** | Formulário com validação de valor e de chave de 44 dígitos |
 | **Scanner de QR Code** | Lê o QR Code da NFC-e pela câmera do celular e extrai a chave, a data e o valor |
+| **Foto do cupom (OCR)** | Fotografa a nota e sugere valor e data — o Tesseract roda dentro do aparelho, a foto não é enviada a lugar nenhum |
+| **CNPJ e nome automáticos** | O CNPJ sai da própria chave; o nome da loja vem da base pública da Receita |
 | **Detecção de duplicidade** | Antes de salvar, confere se aquela chave já existe — e avisa qual nota é |
 | **Controle de prazo** | Calcula sozinho o dia 20 do mês seguinte e mostra quantos dias faltam |
 | **Auditoria** | Toda criação, mudança de situação e duplicidade fica registrada na tabela `logs` |
@@ -50,9 +52,13 @@ nota-fiscal-ong/
 │   └── scanner/page.tsx    página de leitura de QR Code
 ├── components/
 │   ├── Scanner.tsx         câmera, leitura, duplicidade e confirmação
+│   ├── LeitorFoto.tsx      foto do cupom, pré-processamento e OCR
 │   └── FormularioNota.tsx  formulário de cadastro (manual e via scanner)
 ├── lib/
 │   ├── supabase.ts         cliente + todas as funções de dados
+│   ├── chave.ts            decompõe a chave de 44 dígitos
+│   ├── cnpj.ts             nome do estabelecimento pelo CNPJ
+│   ├── ocr.ts              garimpa valor e data no texto do OCR
 │   └── formato.ts          moeda, data, CNPJ, chave e rótulos
 ├── schema.sql              as 3 tabelas, índices, trigger de prazo e RLS
 ├── .env.example            modelo das variáveis de ambiente

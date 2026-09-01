@@ -18,6 +18,8 @@
 - [x] Ação "Marcar cadastrada" direto na tabela
 - [x] Página de scanner com câmera, mira e leitura de QR Code em qualquer navegador (BarcodeDetector nativo + jsQR como alternativa)
 - [x] Entrada manual da chave como alternativa ao scanner
+- [x] Leitura de valor e data pela foto do cupom (OCR no próprio aparelho)
+- [x] CNPJ tirado da chave e nome do estabelecimento buscado na Receita
 - [x] Tela de confirmação dos dados antes de salvar
 - [x] Aviso claro quando a nota lida já existe (duplicidade)
 - [x] Funciona sem o Supabase configurado, avisando o que falta
@@ -59,7 +61,7 @@ Passo a passo em [INSTRUCTIONS.md](INSTRUCTIONS.md).
 | **RLS aberto para `anon`** | Não use com dados reais de doadores ainda | Mesma solução acima — é o item nº 1 da lista |
 | **Tabela `usuarios` sem uso no app** | Ela existe no banco, mas nada grava nela | Preenchida junto com o login |
 | **Leitura na mão-grande** | QR muito danificado ou amassado pode não ler | Entrada manual da chave já cobre |
-| **Sem OCR** | Nota sem QR Code precisa ser digitada | Integrar OCR de foto ou PDF |
+| **OCR sugere, não decide** | Papel amassado ou foto escura pode não ler | É de propósito: o achado vira sugestão com botão "Usar", nunca preenche sozinho |
 | **Sem integração com o portal NFP** | O lançamento no portal continua manual | Avaliar automação depois — o portal não tem API pública |
 | **Limite de 500 notas na tela** | Suficiente por bastante tempo | Adicionar paginação quando o volume crescer |
 | **Sem exportação** | Relatório para a diretoria é manual | Botão de exportar CSV/Excel |
@@ -72,7 +74,7 @@ Passo a passo em [INSTRUCTIONS.md](INSTRUCTIONS.md).
 2. **Exportar CSV** — facilita a prestação de contas da ONG.
 3. **Aviso de prazo** — e-mail ou WhatsApp semanal com as notas vencendo.
 4. **Página de detalhe da nota** — histórico de alterações vindo da tabela `logs`.
-5. **OCR** — cadastrar nota a partir de uma foto, sem QR Code.
+5. **Chave por OCR** — hoje a foto lê valor e data; ler também a chave de 44 dígitos dispensaria o QR Code.
 6. **Multi-ONG** — se a ideia de virar SaaS para outras ONGs avançar.
 
 ---
