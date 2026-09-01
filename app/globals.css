@@ -556,3 +556,38 @@ textarea:focus {
 .lista-passos li {
   margin-bottom: 6px;
 }
+
+/* ------------------------------------------------------------------ */
+/* Leitor de foto (OCR)                                                */
+/* ------------------------------------------------------------------ */
+
+.leitor-foto {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px dashed var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+}
+
+.ocr-achados {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.ocr-achado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--verde-claro);
+  font-size: 14px;
+}

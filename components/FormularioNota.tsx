@@ -8,6 +8,8 @@ import {
   type StatusNota,
 } from '@/lib/supabase'
 import { cnpjValido, consultarNomeEstabelecimento } from '@/lib/cnpj'
+import { dividirChave } from '@/lib/chave'
+import LeitorFoto from './LeitorFoto'
 
 interface Props {
   /** Valores iniciais, por exemplo vindos da leitura do QR Code. */
@@ -45,6 +47,11 @@ export default function FormularioNota({
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [buscandoNome, setBuscandoNome] = useState(false)
+  /** Mês da compra, tirado da chave — usado para descartar data errada no OCR. */
+  const partesChave = dividirChave(chave)
+  const mesDaChave = partesChave
+    ? { ano: partesChave.ano, mes: partesChave.mes }
+    : null
   const [avisoNome, setAvisoNome] = useState<string | null>(null)
   /** CNPJs já consultados, para não bater na API a cada clique fora do campo. */
   const consultados = useRef(new Set<string>())
@@ -195,6 +202,14 @@ export default function FormularioNota({
           placeholder="0,00"
           inputMode="decimal"
           required
+        />
+      </div>
+
+      <div className="campo campo-largo">
+        <LeitorFoto
+          mesEsperado={mesDaChave ?? undefined}
+          onValor={setValor}
+          onData={setDataEmissao}
         />
       </div>
 

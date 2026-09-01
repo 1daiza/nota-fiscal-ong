@@ -9,6 +9,7 @@ import {
   supabaseConfigurado,
   type NotaFiscal,
 } from '@/lib/supabase'
+import { dividirChave } from '@/lib/chave'
 import {
   formatarChave,
   formatarCnpj,
@@ -25,29 +26,6 @@ interface LeituraQr {
 }
 
 type Etapa = 'ocioso' | 'lendo' | 'verificando' | 'duplicada' | 'confirmando'
-
-/**
- * A chave de acesso não é um número aleatório: ela tem uma estrutura fixa
- * definida pela SEFAZ, com 44 dígitos nesta ordem:
- *
- *   35   2608   26563652033484   65    002    000034393   1     30546748   7
- *   UF   AAMM   CNPJ             mod   série  número      tpEmis  código   DV
- *
- * Ou seja: o CNPJ do estabelecimento e o mês da compra vêm de graça dentro
- * da própria chave, sem precisar consultar nada.
- */
-export function dividirChave(chave: string) {
-  if (chave.length !== 44) return null
-  return {
-    uf: chave.slice(0, 2),
-    ano: '20' + chave.slice(2, 4),
-    mes: chave.slice(4, 6),
-    cnpj: chave.slice(6, 20),
-    modelo: chave.slice(20, 22),
-    serie: chave.slice(22, 25),
-    numero: chave.slice(25, 34),
-  }
-}
 
 /**
  * Extrai o que der do conteúdo do QR Code da NFC-e.
