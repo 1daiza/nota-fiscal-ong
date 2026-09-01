@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   registrarNota,
   somenteDigitos,
   type NotaFiscal,
   type StatusNota,
 } from '@/lib/supabase'
+import { cnpjValido, consultarNomeEstabelecimento } from '@/lib/cnpj'
 
 interface Props {
   /** Valores iniciais, por exemplo vindos da leitura do QR Code. */
@@ -43,6 +44,45 @@ export default function FormularioNota({
 
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [buscandoNome, setBuscandoNome] = useState(false)
+  const [avisoNome, setAvisoNome] = useState<string | null>(null)
+  /** CNPJs já consultados, para não bater na API a cada clique fora do campo. */
+  const consultados = useRef(new Set<string>())
+
+  /**
+   * Descobre o nome do estabelecimento pelo CNPJ.
+   * Só preenche se o campo estiver vazio — nunca sobrescreve o que a pessoa
+   * digitou, porque o nome fantasia da Receita às vezes está desatualizado.
+   */
+  const buscarNome = useCallback(async (cnpjBruto: string, atual: string) => {
+    const digitos = somenteDigitos(cnpjBruto)
+    if (digitos.length !== 14 || consultados.current.has(digitos)) return
+    if (atual.trim()) return
+
+    consultados.current.add(digitos)
+
+    if (!cnpjValido(digitos)) {
+      setAvisoNome('CNPJ com dígito verificador inválido — confira os números.')
+      return
+    }
+
+    setAvisoNome(null)
+    setBuscandoNome(true)
+    const nome = await consultarNomeEstabelecimento(digitos)
+    setBuscandoNome(false)
+
+    if (nome) {
+      setEstabelecimento((antigo) => (antigo.trim() ? antigo : nome))
+    } else {
+      setAvisoNome('Não achei o nome desse CNPJ — digite à mão.')
+    }
+  }, [])
+
+  // Ao chegar do scanner, o CNPJ já vem preenchido: busca o nome na hora.
+  useEffect(() => {
+    if (inicial?.cnpj) void buscarNome(inicial.cnpj, '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault()
@@ -106,13 +146,21 @@ export default function FormularioNota({
       </div>
 
       <div className="campo">
-        <label htmlFor="estabelecimento">Estabelecimento</label>
+        <label htmlFor="estabelecimento">
+          Estabelecimento{' '}
+          {buscandoNome && (
+            <span className="secundario">— buscando pelo CNPJ…</span>
+          )}
+        </label>
         <input
           id="estabelecimento"
           value={estabelecimento}
           onChange={(e) => setEstabelecimento(e.target.value)}
-          placeholder="Ex.: Supermercado Bom Preço"
+          placeholder={
+            buscandoNome ? 'Consultando a Receita…' : 'Ex.: Supermercado Bom Preço'
+          }
         />
+        {avisoNome && <span className="secundario">{avisoNome}</span>}
       </div>
 
       <div className="campo">
@@ -121,6 +169,7 @@ export default function FormularioNota({
           id="cnpj"
           value={cnpj}
           onChange={(e) => setCnpj(e.target.value)}
+          onBlur={(e) => void buscarNome(e.target.value, estabelecimento)}
           placeholder="00.000.000/0000-00"
           inputMode="numeric"
         />

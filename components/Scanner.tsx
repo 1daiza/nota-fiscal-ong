@@ -9,11 +9,17 @@ import {
   supabaseConfigurado,
   type NotaFiscal,
 } from '@/lib/supabase'
-import { formatarChave, formatarData, formatarMoeda } from '@/lib/formato'
+import {
+  formatarChave,
+  formatarCnpj,
+  formatarData,
+  formatarMoeda,
+} from '@/lib/formato'
 
 /** Dados que conseguimos extrair do QR Code da NFC-e. */
 interface LeituraQr {
   chave: string
+  cnpj: string | null
   dataEmissao: string | null
   valor: string | null
 }
@@ -21,11 +27,35 @@ interface LeituraQr {
 type Etapa = 'ocioso' | 'lendo' | 'verificando' | 'duplicada' | 'confirmando'
 
 /**
+ * A chave de acesso não é um número aleatório: ela tem uma estrutura fixa
+ * definida pela SEFAZ, com 44 dígitos nesta ordem:
+ *
+ *   35   2608   26563652033484   65    002    000034393   1     30546748   7
+ *   UF   AAMM   CNPJ             mod   série  número      tpEmis  código   DV
+ *
+ * Ou seja: o CNPJ do estabelecimento e o mês da compra vêm de graça dentro
+ * da própria chave, sem precisar consultar nada.
+ */
+export function dividirChave(chave: string) {
+  if (chave.length !== 44) return null
+  return {
+    uf: chave.slice(0, 2),
+    ano: '20' + chave.slice(2, 4),
+    mes: chave.slice(4, 6),
+    cnpj: chave.slice(6, 20),
+    modelo: chave.slice(20, 22),
+    serie: chave.slice(22, 25),
+    numero: chave.slice(25, 34),
+  }
+}
+
+/**
  * Extrai o que der do conteúdo do QR Code da NFC-e.
  *
- * O padrão da SEFAZ traz os campos separados por "|" no parâmetro `p`:
- * chave | versão | ambiente | destinatário | dhEmi(hex) | vNF | ...
- * Nem toda versão traz data e valor, então tudo além da chave é opcional.
+ * O formato muda conforme a versão do QR e se a nota foi emitida online ou em
+ * contingência — o número de campos separados por "|" varia. Em vez de contar
+ * com posições fixas, varremos todos os campos procurando o que reconhecemos:
+ * um horário de emissão escondido em hexadecimal e um valor com centavos.
  */
 export function lerQrCode(texto: string): LeituraQr | null {
   if (!texto) return null
@@ -33,38 +63,40 @@ export function lerQrCode(texto: string): LeituraQr | null {
   const chave = (texto.match(/\d{44}/) ?? [])[0]
   if (!chave) return null
 
+  const partes = dividirChave(chave)
   let dataEmissao: string | null = null
   let valor: string | null = null
 
   const campos = (texto.split('p=')[1] ?? texto).split('|')
-  if (campos.length >= 6) {
-    const dhEmiHex = campos[4]
-    if (/^[0-9a-fA-F]+$/.test(dhEmiHex ?? '')) {
+
+  for (const campo of campos) {
+    if (!campo || campo === chave) continue
+
+    // dhEmi vem em hexadecimal em algumas versões do QR.
+    if (!dataEmissao && /^[0-9a-fA-F]+$/.test(campo) && campo.length >= 20) {
       try {
-        const decodificado = (dhEmiHex.match(/.{1,2}/g) ?? [])
+        const decodificado = (campo.match(/.{1,2}/g) ?? [])
           .map((par) => String.fromCharCode(parseInt(par, 16)))
           .join('')
         const iso = (decodificado.match(/\d{4}-\d{2}-\d{2}/) ?? [])[0]
         if (iso) dataEmissao = iso
       } catch {
-        // data continua nula: o voluntário preenche na mão
+        // segue sem a data: o voluntário preenche na mão
       }
     }
 
-    const bruto = campos[5]
-    if (bruto && /^\d+(\.\d{1,2})?$/.test(bruto)) valor = bruto
+    // vNF é o primeiro campo com centavos; o seguinte costuma ser o vICMS.
+    if (!valor && /^\d{1,9}\.\d{2}$/.test(campo)) valor = campo
   }
 
-  // A data também pode estar embutida na própria chave (posições 3 a 6: AAMM).
-  if (!dataEmissao) {
-    const ano = '20' + chave.slice(2, 4)
-    const mes = chave.slice(4, 6)
-    if (Number(mes) >= 1 && Number(mes) <= 12) {
-      dataEmissao = ano + '-' + mes + '-01'
-    }
+  // Sem dhEmi no QR, ficamos com o mês da compra, que vem na chave.
+  // O dia não existe na chave — o voluntário ajusta se precisar.
+  if (!dataEmissao && partes) {
+    const mes = Number(partes.mes)
+    if (mes >= 1 && mes <= 12) dataEmissao = partes.ano + '-' + partes.mes + '-01'
   }
 
-  return { chave, dataEmissao, valor }
+  return { chave, cnpj: partes?.cnpj ?? null, dataEmissao, valor }
 }
 
 interface Props {
@@ -325,8 +357,15 @@ export default function Scanner({ onSalvo }: Props) {
             <dl>
               <dt>Chave lida</dt>
               <dd className="secundario">{formatarChave(leitura.chave)}</dd>
+              <dt>CNPJ</dt>
+              <dd>{formatarCnpj(leitura.cnpj)}</dd>
               <dt>Emissão</dt>
-              <dd>{formatarData(leitura.dataEmissao)}</dd>
+              <dd>
+                {formatarData(leitura.dataEmissao)}
+                {leitura.dataEmissao?.endsWith('-01') && (
+                  <span className="secundario"> — só o mês vem no QR, ajuste o dia</span>
+                )}
+              </dd>
               <dt>Valor no QR</dt>
               <dd>
                 {leitura.valor
@@ -339,6 +378,7 @@ export default function Scanner({ onSalvo }: Props) {
               origem="scanner"
               inicial={{
                 chave_nfc: leitura.chave,
+                cnpj: leitura.cnpj ?? undefined,
                 data_emissao: leitura.dataEmissao ?? undefined,
                 valor: leitura.valor ?? undefined,
               }}
